@@ -4,6 +4,7 @@
 module CV.Geo.Formats.ENVI where
 
 import System.FilePath.Posix
+import qualified System.Posix.Files as F
 import qualified CV.ImageMath as IM
 import qualified Data.Attoparsec.Text as P
 import qualified Data.Attoparsec.Combinator as P
@@ -22,6 +23,7 @@ import Debug.Trace
 
 data ENVIInfo = ENVIInfo { h :: Int
                          , w :: Int
+                         , fileType :: Int
                          , refPixelX :: Int
                          , refPixelY :: Int
                          , refPixelEasting :: Double
@@ -33,7 +35,7 @@ data ENVIInfo = ENVIInfo { h :: Int
 
 loadENVI :: FilePath -> IO GeoImage
 loadENVI (dropExtension->path) = do
-    hdrLines <- fmap (T.lines) $ T.readFile (path++".hdr")
+    hdrLines <- T.lines <$> T.readFile (path++".hdr")
     case parseHeader hdrLines of
         Left s -> error s
         Right e@ENVIInfo{..} -> do
@@ -49,13 +51,26 @@ loadENVI (dropExtension->path) = do
 loadENVIImage :: ENVIInfo -> FilePath -> IO (Image GrayScale D32)
 loadENVIImage ENVIInfo{..} fp = do
     bs <- B.readFile fp
-    let ar = fromJust $ unsafeByteStringToCArray ((0,0),(w-1,h-1)) bs
-        im = copyFCArrayToImage $ ar
-        -- it seems image is read in wrong order and need to be rotated!
-        -- FIXME: therefore reading non-square ENVI is likely to break
-        -- Cheap, cheap fix.
-        fix = CV.Transforms.flip Vertical . rotate (pi/2)
-    return . fix $ im
+    fileSize <- (fromIntegral . F.fileSize) <$> F.getFileStatus fp
+    if fileSize `rem` (w*h) /= 0
+        then error "ENVI file has incorrect filesize; skipping headers not supported!"
+        else do
+            let
+                bytes = fileSize `div` (w*h)
+                im = case bytes of
+                    4 -> copyFCArrayToImage
+                         . fromJust
+                         . unsafeByteStringToCArray ((0,0),(w-1,h-1))
+                         $ bs
+                    5 -> copyCArrayToImage
+                         . fromJust
+                         . unsafeByteStringToCArray ((0,0),(w-1,h-1))
+                         $ bs
+                    _ -> error "Unsupported ENVI file type."
+                -- If yPixel is positive, image is "upside down" i.e. the
+                -- reference pixel is bottom left.
+                fix = if yPixelSize > 0 then id else id
+            return . fix $ im
 
 -- Parses some header info from ENVI header file
 -- http://geol.hu/data/online_help/ENVI_Header_Format.html
@@ -63,6 +78,7 @@ parseHeader :: [T.Text] -> Either String ENVIInfo
 parseHeader rows = do
     h <- getRow "lines" >>= int'
     w <- getRow "samples" >>= int'
+    fileType <- getRow "file type" >>= int'
     [_,refXLoc,refYLoc,east,north,xSize,ySize,_] <- getRow "map info" >>= dropBrackets >>= splitCommas
     fuu <- getRow "map info" >>= dropBrackets >>= splitCommas
     refPixelX <- int' refXLoc
@@ -71,7 +87,7 @@ parseHeader rows = do
     refPixelNorthing <- double' north
     xPixelSize <- double' xSize
     yPixelSize <- double' ySize
-    return . traceShow fuu $ ENVIInfo{..}
+    return ENVIInfo{..}
   where
     getRow name = P.parseOnly getValue
                 . head

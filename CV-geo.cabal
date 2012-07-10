@@ -21,7 +21,10 @@ Library
       CV >= 0.3.5.3
      ,base
      ,filepath
+     ,carray
+     ,bytestring
      ,text
+     ,unix
      ,attoparsec
 
   -- Modules not exported by this package.
