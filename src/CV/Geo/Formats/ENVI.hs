@@ -23,7 +23,7 @@ import Debug.Trace
 
 data ENVIInfo = ENVIInfo { h :: Int
                          , w :: Int
-                         , fileType :: Int
+                         , dataType :: Int
                          , refPixelX :: Int
                          , refPixelY :: Int
                          , refPixelEasting :: Double
@@ -41,11 +41,13 @@ loadENVI (dropExtension->path) = do
         Right e@ENVIInfo{..} -> do
             im <- loadENVIImage e (path++".envi")
             let a = xPixelSize
-                b = 0 -- ENVI rotations not supported
+                b = 0 -- rotations not supported
                 c = 0
-                d = yPixelSize
+                d = (*(-1)) . abs $ yPixelSize
                 e = refPixelEasting
-                f = refPixelNorthing
+                f = if yPixelSize > 0
+                        then refPixelNorthing + (fromIntegral h * yPixelSize)
+                        else refPixelNorthing
             return GeoImage{..}
 
 loadENVIImage :: ENVIInfo -> FilePath -> IO (Image GrayScale D32)
@@ -57,20 +59,24 @@ loadENVIImage ENVIInfo{..} fp = do
         else do
             let
                 bytes = fileSize `div` (w*h)
-                im = case bytes of
-                    4 -> copyFCArrayToImage
-                         . fromJust
-                         . unsafeByteStringToCArray ((0,0),(w-1,h-1))
-                         $ bs
-                    5 -> copyCArrayToImage
-                         . fromJust
-                         . unsafeByteStringToCArray ((0,0),(w-1,h-1))
-                         $ bs
+                im = case dataType of
+                    4 -> copyFCArrayToImage . readBinaryFile (w,h) $ bs
+                    5 -> copyCArrayToImage  . readBinaryFile (w,h) $ bs
                     _ -> error "Unsupported ENVI file type."
                 -- If yPixel is positive, image is "upside down" i.e. the
                 -- reference pixel is bottom left.
                 fix = if yPixelSize > 0 then id else id
             return . fix $ im
+
+-- | Reads ENVI as CArray. Envi file comes bottom left first and
+-- column major.
+readBinaryFile (w,h) =
+    -- Rotate
+    ixmapP ((0,0),(w-1,h-1)) (\(i,j)->((h-1)-j, i))
+  . fromJust
+    -- Read column major
+  . unsafeByteStringToCArray ((0,0),(h-1,w-1))
+
 
 -- Parses some header info from ENVI header file
 -- http://geol.hu/data/online_help/ENVI_Header_Format.html
@@ -78,9 +84,8 @@ parseHeader :: [T.Text] -> Either String ENVIInfo
 parseHeader rows = do
     h <- getRow "lines" >>= int'
     w <- getRow "samples" >>= int'
-    fileType <- getRow "file type" >>= int'
+    dataType <- getRow "data type" >>= int'
     [_,refXLoc,refYLoc,east,north,xSize,ySize,_] <- getRow "map info" >>= dropBrackets >>= splitCommas
-    fuu <- getRow "map info" >>= dropBrackets >>= splitCommas
     refPixelX <- int' refXLoc
     refPixelY <- int' refYLoc
     refPixelEasting <- double' east
