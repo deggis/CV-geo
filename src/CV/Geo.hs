@@ -34,9 +34,9 @@ chanValue i@GeoImage{..} width p =
 geo2Pixel :: GeoImage -> GeoPoint -> (Int,Int)
 geo2Pixel GeoImage{..} (x_geo,y_geo) =
     let pY :: Int
-        pY  = ceiling $ (+0.5) $ (a*y_geo - a*f - b*x_geo + b*e) / (a*d - b*c)
+        pY  = floor $ (+0.5) $ (a*y_geo - a*f - b*x_geo + b*e) / (a*d - b*c)
         pX :: Int
-        pX  = ceiling $ (+0.5) $ (x_geo - e - (fromIntegral pY)*c) / a
+        pX  = floor $ (+0.5) $ (x_geo - e - (fromIntegral pY)*c) / a
     in (pX,pY)
 
 pixel2Geo :: GeoImage -> (Int,Int) -> GeoPoint
