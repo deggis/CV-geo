@@ -39,8 +39,9 @@ loadENVI (dropExtension->path) = do
     case parseHeader hdrLines of
         Left s -> error s
         Right e@ENVIInfo{..} -> do
-            im <- loadENVIImage e (path++".envi")
-            let a = xPixelSize
+            im <- loadENVIImage e path
+            let
+                a = xPixelSize
                 b = 0 -- rotations not supported
                 c = 0
                 d = (*(-1)) . abs $ yPixelSize
@@ -85,7 +86,7 @@ parseHeader rows = do
     h <- getRow "lines" >>= int'
     w <- getRow "samples" >>= int'
     dataType <- getRow "data type" >>= int'
-    [_,refXLoc,refYLoc,east,north,xSize,ySize,_] <- getRow "map info" >>= dropBrackets >>= splitCommas
+    (a:refXLoc:refYLoc:east:north:xSize:ySize:_) <- getRow "map info" >>= dropBrackets >>= splitCommas
     refPixelX <- int' refXLoc
     refPixelY <- int' refYLoc
     refPixelEasting <- double' east

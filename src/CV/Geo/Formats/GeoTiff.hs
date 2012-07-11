@@ -12,11 +12,14 @@ import CV.Geo.Types
 loadGeoTiff :: FilePath -> IO GeoImage
 loadGeoTiff fp = do
     x <- loadImage fp
-    let worldFile = dropExtension fp ++ ".tfw"
-    [a,b,c,d,e,f] <- readWorldFile worldFile
-    return $ case x of
-        Just im -> GeoImage{..}
+    case x of
         Nothing -> error ("File "++fp++" not found.")
+        Just im -> do
+            let
+                worldFile   = dropExtension fp ++ ".tfw"
+            [a,b,c,d,e,f] <- readWorldFile worldFile
+            return GeoImage{..}
   where
     readWorldFile :: FilePath -> IO [Double]
     readWorldFile = fmap (map read . lines . filter (/='\r')) . readFile
+

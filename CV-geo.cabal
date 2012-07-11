@@ -26,10 +26,3 @@ Library
      ,text
      ,unix
      ,attoparsec
-
-  -- Modules not exported by this package.
-  -- Other-modules:       
-  
-  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  -- Build-tools:         
-  

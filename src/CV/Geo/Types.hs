@@ -19,7 +19,8 @@ data GeoImage = GeoImage {
      , c :: Double
      , d :: Double
      , e :: Double
-     , f :: Double }
+     , f :: Double
+     }
 
 instance Show GeoImage where
     show GeoImage{..} =
@@ -33,3 +34,6 @@ instance Show GeoImage where
             ,", pixel geo sizes: "++show (fl a,fl d)
             ,", rotations: "++show (fl b,fl c)
             ]
+
+
+both f (a,b) = (f a, f b)
