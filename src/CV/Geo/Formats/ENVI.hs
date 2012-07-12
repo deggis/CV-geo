@@ -33,7 +33,7 @@ data ENVIInfo = ENVIInfo { h :: Int
                          }
     deriving (Show)
 
-loadENVI :: FilePath -> IO GeoImage
+loadENVI :: FilePath -> IO (GeoImage (Image GrayScale D32))
 loadENVI (dropExtension->path) = do
     hdrLines <- T.lines <$> T.readFile (path++".hdr")
     case parseHeader hdrLines of

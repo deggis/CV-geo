@@ -25,13 +25,13 @@ import CV.Geo.Types
 import CV.Image
 
 
-chanValue :: GeoImage -> Width -> GeoPoint -> Double
+chanValue :: GeoImage (Image GrayScale D32) -> Width -> GeoPoint -> Double
 chanValue i@GeoImage{..} width p =
     let region    = getWGS84MetricBox i width p
     in realToFrac . IM.average $ region
 
 -- http://www.remotesensing.org/geotiff/faq.html#WorldFile1
-geo2Pixel :: GeoImage -> GeoPoint -> (Int,Int)
+geo2Pixel :: GeoImage a -> GeoPoint -> (Int,Int)
 geo2Pixel GeoImage{..} (x_geo,y_geo) =
     let pY :: Int
         pY  = floor $ (+0.5) $ (a*y_geo - a*f - b*x_geo + b*e) / (a*d - b*c)
@@ -39,7 +39,7 @@ geo2Pixel GeoImage{..} (x_geo,y_geo) =
         pX  = floor $ (+0.5) $ (x_geo - e - (fromIntegral pY)*c) / a
     in (pX,pY)
 
-pixel2Geo :: GeoImage -> (Int,Int) -> GeoPoint
+pixel2Geo :: GeoImage a -> (Int,Int) -> GeoPoint
 pixel2Geo GeoImage{..} (fromIntegral -> pX, fromIntegral -> pY) =
     let x_geo :: Double
         x_geo = e + a*pX + c*pY
@@ -47,7 +47,7 @@ pixel2Geo GeoImage{..} (fromIntegral -> pX, fromIntegral -> pY) =
         y_geo = f + d*pY + b*pX
     in (x_geo, y_geo)
 
-getBoundingGeoBox :: GeoImage -> (GeoPoint,GeoPoint)
+getBoundingGeoBox :: GeoImage (Image a b) -> (GeoPoint,GeoPoint)
 getBoundingGeoBox GeoImage{..} =
     let
         (w,h) = both fromIntegral . getSize $ im
@@ -55,7 +55,7 @@ getBoundingGeoBox GeoImage{..} =
         rly   = f + (h*d)
     in ((e,f),(rlx,rly))
 
-getGeoRegion :: (GeoPoint,GeoPoint) -> GeoImage -> GeoImage
+getGeoRegion :: (GeoPoint,GeoPoint) -> GeoImage (Image a b) -> GeoImage (Image a b)
 getGeoRegion (lu@(lux,luy),rl@(rlx,rly)) g@GeoImage{..} =
     let
         plu@(plux,pluy) = geo2Pixel g lu
@@ -75,7 +75,7 @@ size' lu@(a,b) rl@(c,d) = (abs (c-a),abs (b-d))
 
 -- | Returns sequare area with given width & height in meters
 -- around given center
-getWGS84MetricBox :: GeoImage -> Width -> GeoPoint -> Image GrayScale D32
+getWGS84MetricBox :: GeoImage (Image a b) -> Width -> GeoPoint -> (Image a b)
 getWGS84MetricBox i@GeoImage{..} width (c_x,c_y) =
     let inX = 0.0000036306 * 5 -- unit/m FIXME DIRTY HACK!
         inY = 0.00000179502 * 5 -- unit/m FIXME DIRTY HACK!

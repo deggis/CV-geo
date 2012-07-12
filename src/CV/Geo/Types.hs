@@ -12,8 +12,8 @@ type Width = Double
 
 -- | Basically tif and world file wrapper
 -- http://www.remotesensing.org/geotiff/faq.html#WorldFile1
-data GeoImage = GeoImage {
-       im :: Image GrayScale D32
+data GeoImage a = GeoImage {
+       im :: a
      , a :: Double
      , b :: Double
      , c :: Double
@@ -22,15 +22,15 @@ data GeoImage = GeoImage {
      , f :: Double
      }
 
-instance Show GeoImage where
+instance Show (GeoImage a) where
     show GeoImage{..} =
         let 
-            dims  = getSize im
+--            dims  = getSize im
             fl :: Double -> String
             fl    = printf "%.3f"
         in concat
-            ["Image size: "++show dims
-            ,", reference pixel geo: "++show (fl e,fl f)
+--            ["Image size: "++show dims
+            [", reference pixel geo: "++show (fl e,fl f)
             ,", pixel geo sizes: "++show (fl a,fl d)
             ,", rotations: "++show (fl b,fl c)
             ]
