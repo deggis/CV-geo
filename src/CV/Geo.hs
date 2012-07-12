@@ -51,8 +51,8 @@ getBoundingGeoBox :: GeoImage -> (GeoPoint,GeoPoint)
 getBoundingGeoBox GeoImage{..} =
     let
         (w,h) = both fromIntegral . getSize $ im
-        rlx   = e + ((w-1)*a)
-        rly   = f + ((h-1)*d)
+        rlx   = e + (w*a)
+        rly   = f + (h*d)
     in ((e,f),(rlx,rly))
 
 getGeoRegion :: (GeoPoint,GeoPoint) -> GeoImage -> GeoImage
@@ -71,7 +71,7 @@ getGeoRegion (lu@(lux,luy),rl@(rlx,rly)) g@GeoImage{..} =
     in GeoImage reg dx rot1 rot2 dy refX refY
 
 size' :: Num a => (a,a) -> (a,a) -> (a,a)
-size' lu@(a,b) rl@(c,d) = (c-a,b-d)
+size' lu@(a,b) rl@(c,d) = (abs (c-a),abs (b-d))
 
 -- | Returns sequare area with given width & height in meters
 -- around given center
