@@ -55,6 +55,11 @@ getBoundingGeoBox GeoImage{..} =
         rly   = f + (h*d)
     in ((e,f),(rlx,rly))
 
+
+-- -- | 
+-- getPxRegion :: GeoPoint -> (Int,Int)
+-- getPxRegion (cx,cy) (rx,ry) =
+
 getGeoRegion :: (GeoPoint,GeoPoint) -> GeoImage (Image a b) -> GeoImage (Image a b)
 getGeoRegion (lu@(lux,luy),rl@(rlx,rly)) g@GeoImage{..} =
     let

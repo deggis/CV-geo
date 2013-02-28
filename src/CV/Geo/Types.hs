@@ -22,6 +22,9 @@ data GeoImage a = GeoImage {
      , f :: Double
      }
 
+instance Functor GeoImage where
+    fmap f (GeoImage i' a' b' c' d' e' f') = GeoImage (f i') a' b' c' d' e' f'
+
 instance Show (GeoImage a) where
     show GeoImage{..} =
         let 

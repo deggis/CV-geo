@@ -14,7 +14,7 @@ import qualified Data.Text.IO as T
 import qualified Data.ByteString as B
 import Data.Array.CArray
 
-import CV.Transforms
+import qualified CV.Transforms as CVT
 import CV.Conversions
 import CV.Image
 import CV.Geo.Types
@@ -34,7 +34,7 @@ data ENVIInfo = ENVIInfo { h :: Int
     deriving (Show)
 
 loadENVI :: FilePath -> IO (GeoImage (Image GrayScale D32))
-loadENVI (dropExtension->path) = do
+loadENVI path = do
     hdrLines <- T.lines <$> T.readFile (path++".hdr")
     case parseHeader hdrLines of
         Left s -> error s
@@ -46,10 +46,31 @@ loadENVI (dropExtension->path) = do
                 c = 0
                 d = (*(-1)) . abs $ yPixelSize
                 e = refPixelEasting
-                f = if yPixelSize > 0
-                        then refPixelNorthing + (fromIntegral h * yPixelSize)
-                        else refPixelNorthing
+                f = refPixelNorthing -- + (fromIntegral h * yPixelSize)
             return GeoImage{..}
+
+-- |Loads described ENVI image from given file path. The ENVIInfo descriptor
+-- must contain image's attributes from ENVI .hdr file, such as image size
+-- and data type.
+--
+-- NOTE: Implementation is currently *NOT* complete and allows only some
+-- data types to be read, only one channel (wavelength) per image.
+--
+-- http://geol.hu/data/online_help/ENVI_Header_Format.html
+--
+-- data type - parameter identifying the type of data representation, where
+--   1=8 bit byte
+--   2=16-bit signed integer
+--   3=32-bit signed long integer
+--   4=32-bit floating point (supported)
+--   5=64-bit double precision floating point (supported)
+--   6=2x32-bit complex real-imaginary pair of double precision
+--   9=2x64-bit double precision complex, real-imaginary pair of double precision
+--   12=16-bit unsigned integer (supported)
+--   13=32-bit unsigned long integer
+--   14=64-bit signed long integer and
+--   15=64-bit unsigned long integer.
+
 
 loadENVIImage :: ENVIInfo -> FilePath -> IO (Image GrayScale D32)
 loadENVIImage ENVIInfo{..} fp = do
@@ -60,23 +81,25 @@ loadENVIImage ENVIInfo{..} fp = do
         else do
             let
                 bytes = fileSize `div` (w*h)
+                rotate = True
+                fix = if rotate then CVT.flip CVT.Vertical else id
                 im = case dataType of
                     4 -> copyFCArrayToImage . readBinaryFile (w,h) $ bs
                     5 -> copyCArrayToImage  . readBinaryFile (w,h) $ bs
                     _ -> error "Unsupported ENVI file type."
-                -- If yPixel is positive, image is "upside down" i.e. the
-                -- reference pixel is bottom left.
-                fix = if yPixelSize > 0 then id else id
             return . fix $ im
 
 -- | Reads ENVI as CArray. Envi file comes bottom left first and
 -- column major.
 readBinaryFile (w,h) =
-    -- Rotate
-    ixmapP ((0,0),(w-1,h-1)) (\(i,j)->((h-1)-j, i))
-  . fromJust
-    -- Read column major
-  . unsafeByteStringToCArray ((0,0),(h-1,w-1))
+    let
+        im = ixmapP ((0,0),(w-1,h-1)) (\(i,j)->((h-1)-j, i))
+           . fromJust
+             -- Read column major
+           . unsafeByteStringToCArray ((0,0),(h-1,w-1))
+    in im
+
+--fixProjection = 
 
 
 -- Parses some header info from ENVI header file
